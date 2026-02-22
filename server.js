@@ -1,64 +1,61 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const morgan = require('morgan');
-const connectDB = require('./config/db');
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import multer from 'multer';
+import connectDB from './config/db.js';
 
-// route imports (to be filled later)
-const authRoutes = require('./routes/auth');
-const tenantRoutes = require('./routes/tenants');
-const userRoutes = require('./routes/users');
-const hostRoutes = require('./routes/host');
-// ... more routes
+// ── Route imports ────────────────────────────────────────────────────────────
+import authRoutes     from './routes/auth.js';
+import projectRoutes  from './routes/projects.js';
+import brandingRoutes from './routes/branding.js';
+import tenantRoutes   from './routes/tenants.js';
+import userRoutes     from './routes/users.js';
 
-const app = express();
+// ── Connect to MongoDB ───────────────────────────────────────────────────────
+await connectDB();
 
-// middleware
-app.use(cors());
-app.use(express.json());
-app.use(morgan('dev'));
+// ── Express app ──────────────────────────────────────────────────────────────
+const app  = express();
+const PORT = process.env.PORT || 5000;
 
-// host subdomain middleware - must run before other routes so we can serve html directly
-const hostController = require('./controllers/hostController');
-app.use(hostController.serveSubdomain);
-
-// connect DB
-connectDB();
-
-// routes
-app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/tenants', tenantRoutes);
-app.use('/api/v1/tenants/users', userRoutes);
-app.use('/api/v1', hostRoutes); // independent hosting API
-app.use('/api/v1/subscriptions', require('./routes/subscriptions'));
-app.use('/api/v1/websites', require('./routes/websites'));
-app.use('/api/v1', require('./routes/pages')); // pages, components etc are prefixed
-app.use('/api/v1', require('./routes/components'));
-app.use('/api/v1', require('./routes/versions'));
-app.use('/api/v1/ai', require('./routes/ai'));
-app.use('/api/v1/assets', require('./routes/assets'));
-app.use('/api/v1', require('./routes/domains'));
-app.use('/api/v1', require('./routes/deployments'));
-app.use('/api/v1/analytics', require('./routes/analytics'));
-app.use('/api/v1/notifications', require('./routes/notifications'));
-app.use('/api/v1/activity-logs', require('./routes/activityLogs'));
-app.use('/api/v1/public', require('./routes/public'));
-app.use('/api/v1', require('./routes/websiteVersions')); // html versioning for sites
-// other modules can be added similarly
-
-
-// error handler
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({
-    success: false,
-    error: {
-      message: err.message || 'Server Error'
-    }
-  });
+// ── Multer (memory storage for Cloudinary uploads) ───────────────────────────
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB max
 });
 
-const PORT = process.env.PORT || 5000;
+// ── Global middleware ────────────────────────────────────────────────────────
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true,
+}));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// ── Routes ───────────────────────────────────────────────────────────────────
+app.use('/api/auth',     authRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/branding', upload.single('file'), brandingRoutes);
+app.use('/api/tenants',  tenantRoutes);
+app.use('/api/tenants',  userRoutes);
+
+// ── Health check ─────────────────────────────────────────────────────────────
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// ── 404 handler ──────────────────────────────────────────────────────────────
+app.use((_req, res) => {
+  res.status(404).json({ error: 'Route not found.' });
+});
+
+// ── Global error handler ─────────────────────────────────────────────────────
+app.use((err, _req, res, _next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error.' });
+});
+
+// ── Start server ─────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`✓ Site Pilot backend running on http://localhost:${PORT}`);
 });

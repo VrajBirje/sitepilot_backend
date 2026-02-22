@@ -1,41 +1,39 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 
-const refreshTokenSchema = new mongoose.Schema({
-  token: String,
-  expiresAt: Date,
-  deviceInfo: String
-});
-
-const userSchema = new mongoose.Schema({
-  name: { type: String, required: true, trim: true, minlength: 2, maxlength: 100 },
-  email: { type: String, required: true, unique: true, lowercase: true, trim: true, match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
-  passwordHash: { type: String, required: true },
-  isEmailVerified: { type: Boolean, default: false },
-  emailVerificationToken: String,
-  emailVerificationExpires: Date,
-  resetPasswordToken: String,
-  resetPasswordExpires: Date,
-  globalRole: { type: String, enum: ['superadmin','platform_admin','user'], default: 'user' },
-  preferences: {
-    language: { type: String, default: 'en' },
-    timezone: String,
-    notifications: {
-      email: { type: Boolean, default: true },
-      inApp: { type: Boolean, default: true }
-    }
+const UserSchema = new mongoose.Schema(
+  {
+    name:     { type: String, required: true, trim: true },
+    email:    { type: String, required: true, lowercase: true, trim: true },
+    password: { type: String, required: true, minlength: 6 },
+    tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
+    role:     { type: String, enum: ['admin', 'editor', 'viewer'], default: 'editor' },
+    avatar:   { type: String, default: null },
   },
-  lastLoginAt: Date,
-  lastLoginIP: String,
-  mfaEnabled: { type: Boolean, default: false },
-  mfaSecret: String,
-  refreshTokens: [refreshTokenSchema],
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now },
-  deletedAt: Date
+  { timestamps: true }
+);
+
+// Compound index: ensure unique email within tenant (not globally unique)
+UserSchema.index({ email: 1, tenantId: 1 }, { unique: true });
+
+// ── Hash password before save ────────────────────────────────────────────────
+UserSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
+  this.password = await bcrypt.hash(this.password, 12);
+  next();
 });
 
-userSchema.index({ email: 1 }, { unique: true });
-userSchema.index({ 'refreshTokens.token': 1 });
-userSchema.index({ createdAt: 1 });
+// ── Instance method: compare password ────────────────────────────────────────
+UserSchema.methods.comparePassword = async function (candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
+};
 
-module.exports = mongoose.model('User', userSchema);
+// ── Remove password from JSON output ─────────────────────────────────────────
+UserSchema.methods.toJSON = function () {
+  const obj = this.toObject();
+  delete obj.password;
+  return obj;
+};
+
+const User = mongoose.model('User', UserSchema);
+export default User;
