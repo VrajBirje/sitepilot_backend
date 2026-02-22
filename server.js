@@ -25,10 +25,37 @@ const upload = multer({
 });
 
 // ── Global middleware ────────────────────────────────────────────────────────
+
+// Define allowed origins
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5000',
+  'https://vrajbirje.com',
+  process.env.FRONTEND_URL,
+  'https://sp.yaash.dev/'
+].filter(Boolean); // Remove undefined values
+
+// CORS configuration with options
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is allowed
+    if (allowedOrigins.some(allowed => 
+      allowed instanceof RegExp 
+        ? allowed.test(origin) 
+        : allowed === origin
+    )) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
+  optionsSuccessStatus: 200
 }));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 

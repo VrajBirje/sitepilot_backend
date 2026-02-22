@@ -10,7 +10,7 @@ const router = Router();
 // ══════════════════════════════════════════════════════════════════════════════
 // GET /api/projects/:tenantId  — list all projects for current user in tenant
 // ══════════════════════════════════════════════════════════════════════════════
-router.get('/:tenantId/all',  async (req, res) => {
+router.get('/:tenantId/all', verifyToken, checkTenantAccess, async (req, res) => {
   try {
     const projects = await Project.find({ tenantId: req.params.tenantId })
       .populate('activeVersionId')
