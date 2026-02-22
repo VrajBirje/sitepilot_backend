@@ -6,7 +6,6 @@
 - Node.js 18+
 - MongoDB (local or Atlas)
 - Google Gemini API key
-- Cloudinary account
 
 ### 2. Environment Setup
 
@@ -27,14 +26,25 @@ JWT_SECRET=your_super_secret_key_change_this_in_prod
 # AI (Gemini)
 GEMINI_API_KEY=sk-proj-...
 
-# Image Hosting (Cloudinary)
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
+# Image Hosting (Cloudinary) credentials are no longer required on the backend.
+# Logos are uploaded directly by the frontend; the server only stores URLs.
 
 # Server
 PORT=5000
 ```
+
+## Frontend Cloudinary Setup
+Logos (and other images) are uploaded directly by the browser to Cloudinary. The backend no longer needs or uses any Cloudinary credentials.
+
+When building the React app, set these environment variables (e.g. in `.env.local`):
+
+```bash
+REACT_APP_CLOUDINARY_CLOUD_NAME=your_cloud_name
+REACT_APP_CLOUDINARY_UPLOAD_PRESET=your_unsigned_preset
+```
+
+The frontend will POST images to Cloudinary itself and then send the resulting URL to the server via the branding update API.
+
 
 ### 3. Run the Server
 ```bash
@@ -101,7 +111,8 @@ Content-Type: application/json
   "primaryColor": "#1f2937",
   "secondaryColor": "#3b82f6",
   "fontHeading": "Outfit",
-  "fontBody": "Inter"
+  "fontBody": "Inter",
+  "logo": "https://res.cloudinary.com/…/logo.png"   # URL returned by Cloudinary
 }
 ```
 

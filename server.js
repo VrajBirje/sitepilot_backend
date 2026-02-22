@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import multer from 'multer';
 import connectDB from './config/db.js';
 
 // ── Route imports ────────────────────────────────────────────────────────────
@@ -18,11 +17,6 @@ await connectDB();
 const app  = express();
 const PORT = process.env.PORT || 5000;
 
-// ── Multer (memory storage for Cloudinary uploads) ───────────────────────────
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB max
-});
 
 // ── Global middleware ────────────────────────────────────────────────────────
 
@@ -32,7 +26,7 @@ const allowedOrigins = [
   'http://localhost:5000',
   'https://vrajbirje.com',
   process.env.FRONTEND_URL,
-  'https://sp.yaash.dev/'
+  'https://sp.yaash.dev'
 ].filter(Boolean); // Remove undefined values
 
 // CORS configuration with options
@@ -62,7 +56,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // ── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth',     authRoutes);
 app.use('/api/projects', projectRoutes);
-app.use('/api/branding', upload.single('file'), brandingRoutes);
+app.use('/api/branding', brandingRoutes);
 app.use('/api/tenants',  tenantRoutes);
 app.use('/api/tenants',  userRoutes);
 

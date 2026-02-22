@@ -222,7 +222,9 @@ fonts, logo, images, services
 ```javascript
 import { registerTenant, loginUser, getMe } from '@/services/authService';
 import { getProjects, createProject, generateWebsite } from '@/services/projectService';
-import { getBranding, updateBranding, uploadLogo, addService } from '@/services/brandingService';
+// logo upload is now handled via services/cloudinary.js and the resulting URL
+// passed to updateBranding; uploadLogo helper is deprecated and throws.
+import { getBranding, updateBranding, addService } from '@/services/brandingService';
 import { getTenant, updateTenant } from '@/services/tenantService';
 import { listUsers, inviteUser } from '@/services/userService';
 ```

@@ -2,7 +2,9 @@ import { Router } from 'express';
 import Branding from '../models/Branding.js';
 import Tenant from '../models/Tenant.js';
 import { verifyToken, requireAdmin, requireEditor, checkTenantAccess } from '../middleware/auth.js';
-import { uploadToCloudinary, deleteFromCloudinary } from '../services/cloudinary.js';
+// cloudinary logic is now handled entirely on the frontend; the backend simply stores
+// whatever URL the client sends as `logo` in the branding document.
+
 
 const router = Router();
 
@@ -41,6 +43,7 @@ router.put('/:tenantId', verifyToken, checkTenantAccess, requireEditor, async (r
     const allowedFields = [
       'companyName', 'companyDescription', 'primaryColor', 'secondaryColor',
       'accentColor', 'backgroundColor', 'bgColor', 'textColor', 'fontHeading', 'fontBody',
+      'logo', // now allowed because the frontend supplies the Cloudinary URL
     ];
     for (const key of allowedFields) {
       if (req.body[key] === undefined) continue;
@@ -68,49 +71,10 @@ router.put('/:tenantId', verifyToken, checkTenantAccess, requireEditor, async (r
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
-// POST /api/branding/:tenantId/upload-logo   — upload logo (ADMIN ONLY)
-// Form Data: file
-// ══════════════════════════════════════════════════════════════════════════════
-router.post('/:tenantId/upload-logo', verifyToken, checkTenantAccess, requireEditor, async (req, res) => {
-  try {
-    const branding = await findOwnedBranding(req.tenantId, req.params.tenantId);
-    if (!branding) return res.status(404).json({ error: 'Branding not found.' });
-    if (!req.file)  return res.status(400).json({ error: 'No file provided.' });
+// NOTE: file‑upload endpoints have been removed in favor of frontend‑side
+// Cloudinary uploads.  Clients should set `logo` directly via the PUT route.
 
-    const url = await uploadToCloudinary(req.file.buffer, 'site-pilot/logos');
-
-    // Delete old logo from Cloudinary if present
-    if (branding.logo) await deleteFromCloudinary(branding.logo);
-
-    branding.logo = url;
-    await branding.save();
-
-    res.json({ ok: true, logo: url });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ══════════════════════════════════════════════════════════════════════════════
-// POST /api/branding/:tenantId/upload-image  — upload gallery image (ADMIN ONLY)
-// Form Data: file, alt?
-// ══════════════════════════════════════════════════════════════════════════════
-router.post('/:tenantId/upload-image', verifyToken, checkTenantAccess, requireEditor, async (req, res) => {
-  try {
-    const branding = await findOwnedBranding(req.tenantId, req.params.tenantId);
-    if (!branding) return res.status(404).json({ error: 'Branding not found.' });
-    if (!req.file)  return res.status(400).json({ error: 'No file provided.' });
-
-    const url = await uploadToCloudinary(req.file.buffer, 'site-pilot/images');
-    const image = { url, alt: req.body.alt || 'Image', uploadedAt: new Date() };
-    branding.images.push(image);
-    await branding.save();
-
-    res.json({ ok: true, image: branding.images[branding.images.length - 1] });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// (previous upload routes are intentionally omitted)
 
 // ══════════════════════════════════════════════════════════════════════════════
 // DELETE /api/branding/:tenantId/images/:imageId — remove gallery image (ADMIN ONLY)
